@@ -196,6 +196,15 @@ add_project_arguments(cc.get_supported_arguments(compiler_args), language: 'c')
 add_project_arguments(clang.get_supported_arguments(native_compiler_args), language: 'c', native: true)
 add_project_link_arguments(cpp.get_supported_link_arguments(link_args), language: 'cpp')
 add_project_link_arguments(cc.get_supported_link_arguments(link_args), language: 'c')
+# proton-mac (macOS 16KB host pages): pass --section-alignment UNFILTERED. These ARM64X-hybrid DLLs carry
+# native ARM64 code that must be host-executable, so the Wine image mapper cannot strip PROT_EXEC (unlike
+# pure-emulated x64 images). With 4KB SectionAlignment a 16KB host page straddles RX .text + RW .data -> RWX
+# union -> macOS W^X rejects it ("noexec"). 16KB section alignment keeps every section off a shared host page.
+# (get_supported_link_arguments drops this flag because lld emits a benign "/align without /driver" warning.)
+if dxmt_crossbuild
+  add_project_link_arguments('-Wl,--section-alignment=0x4000', language: 'c')
+  add_project_link_arguments('-Wl,--section-alignment=0x4000', language: 'cpp')
+endif
 if dxmt_crossbuild
   add_project_arguments(['-arch', native_compiler_arch], language: 'c',  native: true)
   add_project_arguments(['-arch', native_compiler_arch], language: 'cpp',  native: true)

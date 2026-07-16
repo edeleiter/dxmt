@@ -1576,8 +1576,11 @@ typedef struct opaque_HWND *HWND;
 struct macdrv_win_data {
   HWND hwnd; /* hwnd that this private data belongs to */
   macdrv_window cocoa_window;
-  macdrv_view cocoa_view;
-  macdrv_view client_cocoa_view;
+  /* proton-mac: Wine 11.7 winemac collapsed the old {cocoa_view, client_cocoa_view} pair into a
+   * single `client_view` at this offset (dlls/winemac.drv/macdrv.h struct macdrv_win_data), followed
+   * by non-pointer `struct window_rects`. DXMT upstream read `client_cocoa_view` at offset 24, which
+   * lands inside `rects` (garbage) -> bad metal view -> NULL layer. Match Wine 11.7's layout. */
+  macdrv_view client_view;
 };
 
 struct macdrv_functions_t {
@@ -1615,11 +1618,20 @@ _CreateMetalViewFromHWND(void *obj) {
     pfn_macdrv_view_get_metal_layer = dlsym(RTLD_DEFAULT, "macdrv_view_get_metal_layer");
   }
 
+  /* proton-mac: winemac creates `client_view` lazily only for its own GL/VK surface paths, so for a plain
+   * Win32 window it is NULL and the metal view can't be made. If winemac exports the on-demand materializer
+   * (metal_bridge.c: macdrv_get_or_create_client_view), use it; else fall back to the raw field read. */
+  macdrv_view (*pfn_get_or_create_client_view)(HWND hwnd) =
+      dlsym(RTLD_DEFAULT, "macdrv_get_or_create_client_view");
+
   if (pfn_get_win_data && pfn_release_win_data && pfn_macdrv_view_create_metal_view &&
       pfn_macdrv_view_get_metal_layer) {
     struct macdrv_win_data *win_data = pfn_get_win_data((HWND)params->hwnd);
+    macdrv_view client_view = pfn_get_or_create_client_view
+                                  ? pfn_get_or_create_client_view((HWND)params->hwnd)
+                                  : win_data->client_view;
     macdrv_metal_view view =
-        pfn_macdrv_view_create_metal_view(win_data->client_cocoa_view, (macdrv_metal_device)params->device);
+        pfn_macdrv_view_create_metal_view(client_view, (macdrv_metal_device)params->device);
     params->ret_view = (obj_handle_t)view;
     if (view) {
       params->ret_layer = (obj_handle_t)pfn_macdrv_view_get_metal_layer(view);
