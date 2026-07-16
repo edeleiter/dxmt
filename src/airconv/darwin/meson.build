@@ -19,6 +19,13 @@ if native_llvm_path.startswith('/usr/local/opt')
     llvm_ld_flags_darwin,
     '/usr/local/opt/zstd/lib/libzstd.a', '/usr/local/opt/llvm@15/lib/libunwind.a'
   ]
+elif native_llvm_path.startswith('/opt/homebrew/opt')
+  # proton-mac: arm64 Homebrew prefix (Apple Silicon). brew llvm@15's libLLVMSupport is built with
+  # zstd + libunwind, so the native winemetal.so link needs them just like the Intel-brew case above.
+  llvm_ld_flags_darwin = [
+    llvm_ld_flags_darwin,
+    '/opt/homebrew/opt/zstd/lib/libzstd.a', '/opt/homebrew/opt/llvm@15/lib/libunwind.a'
+  ]
 endif
 
 airconv_lib_darwin = static_library('airconv', airconv_src,
