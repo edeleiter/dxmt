@@ -744,6 +744,12 @@ public:
                           && !fullscreen_desc_.Windowed && !window_minimized && !wsi::isForeground(hWnd);
     if (hr == S_OK && should_exit_fs)
       hr = DXGI_STATUS_OCCLUDED;
+    /* proton-mac Step-0 present probe (black-window investigation): is Present1 called, and is it gated to
+     * OCCLUDED (bad size / minimized / not-foreground)? Bounded. */
+    { static int pn = 0; if (pn++ < 30)
+        ERR("PRESENTPROBE n=", pn, " hr=", (hr == S_OK ? "OK" : "OCCLUDED"), " min=", window_minimized,
+            " W=", desc_.Width, " H=", desc_.Height, " exitfs=", should_exit_fs,
+            " fg=", wsi::isForeground(hWnd), " hwnd=", (uint64_t)(uintptr_t)hWnd); }
     if (PresentFlags & DXGI_PRESENT_TEST)
       return hr;
 

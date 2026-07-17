@@ -473,6 +473,13 @@ public:
       cmd_queue.CurrentFrameStatistics().event_stall++;
       Flush();
     }
+    /* proton-mac Step-1 poll-set probe (guest-internal post-locale wait): is GetData the hot poll, on which
+     * query type, with DONOTFLUSH set? Bounded. */
+    { static int gdn = 0; int n = gdn++;
+      if (n < 20 || (n % 4000) == 0)
+        ERR("GDPROBE n=", n, " qtype=", (int)desc.Query,
+            " hr=", (hr == S_OK ? "S_OK" : (hr == S_FALSE ? "S_FALSE" : "other")),
+            " donotflush=", (int)((GetDataFlags & D3D11_ASYNC_GETDATA_DONOTFLUSH) != 0)); }
     return hr;
   }
 
